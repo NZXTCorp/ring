@@ -53,9 +53,9 @@ static const fe d2 = {{
 //
 // This table contains 15 pairs of group elements, (x, y), where each field
 // element is serialised with |fe_tobytes|. If |i| is the index of the group
-// element then consider i+1 as a four-bit number: (i₀, i₁, i₂, i₃) (where i₀
+// element then consider i+1 as a four-bit number: (i0, i1, i2, i3) (where i0
 // is the most significant bit). The value of the group element is then:
-// (i₀×2^192 + i₁×2^128 + i₂×2^64 + i₃)G, where G is the generator.
+// (i0*2^192 + i1*2^128 + i2*2^64 + i)G, where G is the generator.
 static const uint8_t k25519SmallPrecomp[15 * 2 * 32] = {
     0x1a, 0xd5, 0x25, 0x8f, 0x60, 0x2d, 0x56, 0xc9, 0xb2, 0xa7, 0x25, 0x95,
     0x60, 0xc7, 0x2c, 0x69, 0x5c, 0xdc, 0xd6, 0xfd, 0x31, 0xe2, 0xa4, 0xc0,
