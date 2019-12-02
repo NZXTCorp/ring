@@ -56,8 +56,7 @@
     trivial_casts,
     unused_extern_crates,
     unused_import_braces,
-    unused_results,
-    warnings
+    unused_results
 )]
 #![cfg_attr(
     any(
