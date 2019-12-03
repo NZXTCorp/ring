@@ -250,14 +250,14 @@ const MSVC_OBJ_OPT: &str = "/Fo";
 const MSVC_OBJ_EXT: &str = "obj";
 
 fn main() {
-    if let Ok(package_name) = std::env::var("CARGO_PKG_NAME") {
-        if package_name == "ring" {
-            ring_build_rs_main();
-            return;
-        }
-    }
+    let is_ring_package = std::env::var("CARGO_PKG_NAME") == Ok("ring".to_string());
 
+    //NOTE: pull ahead to force pregenerate assemblies before building library
     pregenerate_asm_main();
+
+    if is_ring_package {
+        ring_build_rs_main();
+    }
 }
 
 fn ring_build_rs_main() {
@@ -301,6 +301,9 @@ fn ring_build_rs_main() {
 
 fn pregenerate_asm_main() {
     let pregenerated = PathBuf::from(PREGENERATED);
+    if pregenerated.exists() {
+        std::fs::remove_dir_all(&pregenerated).unwrap();
+    }
     std::fs::create_dir(&pregenerated).unwrap();
     let pregenerated_tmp = pregenerated.join("tmp");
     std::fs::create_dir(&pregenerated_tmp).unwrap();
