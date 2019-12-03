@@ -33,8 +33,7 @@
     unused_import_braces,
     unused_qualifications,
     unused_results,
-    variant_size_differences,
-    warnings
+    variant_size_differences
 )]
 
 // In the `pregenerate_asm_main()` case we don't want to access (Cargo)
@@ -252,8 +251,8 @@ const MSVC_OBJ_EXT: &str = "obj";
 fn main() {
     let is_ring_package = std::env::var("CARGO_PKG_NAME") == Ok("ring".to_string());
 
-    //NOTE: pull ahead to force pregenerate assemblies before building library
-    pregenerate_asm_main();
+    //NOTE: pull ahead to force pregenerate assemblies before building library, then disabled it
+    //pregenerate_asm_main();
 
     if is_ring_package {
         ring_build_rs_main();
@@ -380,8 +379,8 @@ fn build_c_code(target: &Target, pregenerated: PathBuf, out_dir: &Path) {
         })
         .unwrap();
 
-    let use_pregenerated = !target.is_git;
-    let warnings_are_errors = target.is_git;
+    let use_pregenerated = true;
+    let warnings_are_errors = false;
 
     let asm_dir = if use_pregenerated {
         &pregenerated
