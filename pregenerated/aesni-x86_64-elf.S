@@ -16,6 +16,7 @@
 .type	GFp_aes_hw_encrypt,@function
 .align	16
 GFp_aes_hw_encrypt:
+.cfi_startproc	
 	movups	(%rdi),%xmm2
 	movl	240(%rdx),%eax
 	movups	(%rdx),%xmm0
@@ -34,10 +35,12 @@ GFp_aes_hw_encrypt:
 	movups	%xmm2,(%rsi)
 	pxor	%xmm2,%xmm2
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	GFp_aes_hw_encrypt,.-GFp_aes_hw_encrypt
 .type	_aesni_encrypt2,@function
 .align	16
 _aesni_encrypt2:
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -63,10 +66,12 @@ _aesni_encrypt2:
 .byte	102,15,56,221,208
 .byte	102,15,56,221,216
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_aesni_encrypt2,.-_aesni_encrypt2
 .type	_aesni_encrypt3,@function
 .align	16
 _aesni_encrypt3:
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -97,10 +102,12 @@ _aesni_encrypt3:
 .byte	102,15,56,221,216
 .byte	102,15,56,221,224
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_aesni_encrypt3,.-_aesni_encrypt3
 .type	_aesni_encrypt4,@function
 .align	16
 _aesni_encrypt4:
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -137,10 +144,12 @@ _aesni_encrypt4:
 .byte	102,15,56,221,224
 .byte	102,15,56,221,232
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_aesni_encrypt4,.-_aesni_encrypt4
 .type	_aesni_encrypt6,@function
 .align	16
 _aesni_encrypt6:
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -191,10 +200,12 @@ _aesni_encrypt6:
 .byte	102,15,56,221,240
 .byte	102,15,56,221,248
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_aesni_encrypt6,.-_aesni_encrypt6
 .type	_aesni_encrypt8,@function
 .align	16
 _aesni_encrypt8:
+.cfi_startproc	
 	movups	(%rcx),%xmm0
 	shll	$4,%eax
 	movups	16(%rcx),%xmm1
@@ -255,6 +266,7 @@ _aesni_encrypt8:
 .byte	102,68,15,56,221,192
 .byte	102,68,15,56,221,200
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_aesni_encrypt8,.-_aesni_encrypt8
 .globl	GFp_aes_hw_ctr32_encrypt_blocks
 .hidden GFp_aes_hw_ctr32_encrypt_blocks
@@ -1166,3 +1178,4 @@ __aesni_set_encrypt_key:
 .byte	65,69,83,32,102,111,114,32,73,110,116,101,108,32,65,69,83,45,78,73,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	64
 #endif
+.section	.note.GNU-stack,"",@progbits

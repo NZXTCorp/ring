@@ -1,10 +1,11 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__has_feature)
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -14,6 +15,39 @@
 // this file except in compliance with the License.  You can obtain a copy
 // in the file LICENSE in the source distribution or at
 // https://www.openssl.org/source/license.html
+
+// ====================================================================
+// Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+// project. The module is, however, dual licensed under OpenSSL and
+// CRYPTOGAMS licenses depending on where you obtain it. For further
+// details see http://www.openssl.org/~appro/cryptogams/.
+//
+// Permission to use under GPLv2 terms is granted.
+// ====================================================================
+//
+// SHA256/512 for ARMv8.
+//
+// Performance in cycles per processed byte and improvement coefficient
+// over code generated with "default" compiler:
+//
+//		SHA256-hw	SHA256(*)	SHA512
+// Apple A7	1.97		10.5 (+33%)	6.73 (-1%(**))
+// Cortex-A53	2.38		15.5 (+115%)	10.0 (+150%(***))
+// Cortex-A57	2.31		11.6 (+86%)	7.51 (+260%(***))
+// Denver	2.01		10.5 (+26%)	6.70 (+8%)
+// X-Gene			20.0 (+100%)	12.8 (+300%(***))
+// Mongoose	2.36		13.0 (+50%)	8.36 (+33%)
+//
+// (*)	Software SHA256 results are of lesser relevance, presented
+//	mostly for informational purposes.
+// (**)	The result is a trade-off: it's possible to improve it by
+//	10% (or by 1 cycle per round), but at the cost of 20% loss
+//	on Cortex-A53 (or by 4 cycles per round).
+// (***)	Super-impressive coefficients over gcc-generated code are
+//	indication of some compiler "pathology", most notably code
+//	generated with -mgeneral-regs-only is significanty faster
+//	and the gap is only 40-90%.
+
 #ifndef	__KERNEL__
 # include <GFp/arm_arch.h>
 #endif
@@ -27,9 +61,12 @@
 .align	6
 _GFp_sha256_block_data_order:
 #ifndef	__KERNEL__
+#if __has_feature(hwaddress_sanitizer) && __clang_major__ >= 10
+	adrp	x16,:pg_hi21_nc:_GFp_armcap_P
+#else
 	adrp	x16,_GFp_armcap_P@PAGE
-	add	x16,x16,_GFp_armcap_P@PAGEOFF
-	ldr	w16,[x16]
+#endif
+	ldr	w16,[x16,_GFp_armcap_P@PAGEOFF]
 	tst	w16,#ARMV8_SHA256
 	b.ne	Lv8_entry
 #endif

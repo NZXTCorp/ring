@@ -1,10 +1,11 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__has_feature)
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -15,6 +16,51 @@
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
+
+
+@ ====================================================================
+@ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+@ project. The module is, however, dual licensed under OpenSSL and
+@ CRYPTOGAMS licenses depending on where you obtain it. For further
+@ details see http://www.openssl.org/~appro/cryptogams/.
+@
+@ Specific modes and adaptation for Linux kernel by Ard Biesheuvel
+@ of Linaro. Permission to use under GPL terms is granted.
+@ ====================================================================
+
+@ Bit-sliced AES for ARM NEON
+@
+@ February 2012.
+@
+@ This implementation is direct adaptation of bsaes-x86_64 module for
+@ ARM NEON. Except that this module is endian-neutral [in sense that
+@ it can be compiled for either endianness] by courtesy of vld1.8's
+@ neutrality. Initial version doesn't implement interface to OpenSSL,
+@ only low-level primitives and unsupported entry points, just enough
+@ to collect performance results, which for Cortex-A8 core are:
+@
+@ encrypt	19.5 cycles per byte processed with 128-bit key
+@ decrypt	22.1 cycles per byte processed with 128-bit key
+@ key conv.	440  cycles per 128-bit key/0.18 of 8x block
+@
+@ Snapdragon S4 encrypts byte in 17.6 cycles and decrypts in 19.7,
+@ which is [much] worse than anticipated (for further details see
+@ http://www.openssl.org/~appro/Snapdragon-S4.html).
+@
+@ Cortex-A15 manages in 14.2/16.1 cycles [when integer-only code
+@ manages in 20.0 cycles].
+@
+@ When comparing to x86_64 results keep in mind that NEON unit is
+@ [mostly] single-issue and thus can't [fully] benefit from
+@ instruction-level parallelism. And when comparing to aes-armv4
+@ results keep in mind key schedule conversion overhead (see
+@ bsaes-x86_64.pl for further details)...
+@
+@						<appro@openssl.org>
+
+@ April-August 2013
+@ Add CBC, CTR and XTS subroutines and adapt for kernel use; courtesy of Ard.
+
 #ifndef __KERNEL__
 # include <GFp/arm_arch.h>
 
@@ -565,15 +611,13 @@ _bsaes_key_convert:
 	@ don't save last round key
 	bx	lr
 .size	_bsaes_key_convert,.-_bsaes_key_convert
-
 .globl	GFp_bsaes_ctr32_encrypt_blocks
 .hidden	GFp_bsaes_ctr32_encrypt_blocks
 .type	GFp_bsaes_ctr32_encrypt_blocks,%function
 .align	5
 GFp_bsaes_ctr32_encrypt_blocks:
-	cmp	r2, #8			@ use plain AES for
-	blo	.Lctr_enc_short			@ small sizes
-
+	@ In OpenSSL, short inputs fall back to aes_nohw_* here. We patch this
+	@ out to retain a constant-time implementation.
 	mov	ip, sp
 	stmdb	sp!, {r4,r5,r6,r7,r8,r9,r10, lr}
 	VFP_ABI_PUSH
@@ -749,51 +793,10 @@ GFp_bsaes_ctr32_encrypt_blocks:
 	VFP_ABI_POP
 	ldmia	sp!, {r4,r5,r6,r7,r8,r9,r10, pc}	@ return
 
-.align	4
-.Lctr_enc_short:
-	ldr	ip, [sp]		@ ctr pointer is passed on stack
-	stmdb	sp!, {r4,r5,r6,r7,r8, lr}
-
-	mov	r4, r0		@ copy arguments
-	mov	r5, r1
-	mov	r6, r2
-	mov	r7, r3
-	ldr	r8, [ip, #12]		@ load counter .LSW
-	vld1.8	{q1}, [ip]		@ load whole counter value
-#ifdef __ARMEL__
-	rev	r8, r8
-#endif
-	sub	sp, sp, #0x10
-	vst1.8	{q1}, [sp]		@ copy counter value
-	sub	sp, sp, #0x10
-
-.Lctr_enc_short_loop:
-	add	r0, sp, #0x10		@ input counter value
-	mov	r1, sp			@ output on the stack
-	mov	r2, r7			@ key
-
-	bl	GFp_aes_nohw_encrypt
-
-	vld1.8	{q0}, [r4]!	@ load input
-	vld1.8	{q1}, [sp]		@ load encrypted counter
-	add	r8, r8, #1
-#ifdef __ARMEL__
-	rev	r0, r8
-	str	r0, [sp, #0x1c]		@ next counter value
-#else
-	str	r8, [sp, #0x1c]		@ next counter value
-#endif
-	veor	q0,q0,q1
-	vst1.8	{q0}, [r5]!	@ store output
-	subs	r6, r6, #1
-	bne	.Lctr_enc_short_loop
-
-	vmov.i32	q0, #0
-	vmov.i32	q1, #0
-	vstmia	sp!, {q0,q1}
-
-	ldmia	sp!, {r4,r5,r6,r7,r8, pc}
+	@ OpenSSL contains aes_nohw_* fallback code here. We patch this
+	@ out to retain a constant-time implementation.
 .size	GFp_bsaes_ctr32_encrypt_blocks,.-GFp_bsaes_ctr32_encrypt_blocks
 #endif
 #endif
 #endif  // !OPENSSL_NO_ASM
+.section	.note.GNU-stack,"",%progbits

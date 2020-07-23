@@ -1,10 +1,11 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__has_feature)
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -15,6 +16,45 @@
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
+
+
+@ ====================================================================
+@ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+@ project. The module is, however, dual licensed under OpenSSL and
+@ CRYPTOGAMS licenses depending on where you obtain it. For further
+@ details see http://www.openssl.org/~appro/cryptogams/.
+@
+@ Permission to use under GPL terms is granted.
+@ ====================================================================
+
+@ SHA256 block procedure for ARMv4. May 2007.
+
+@ Performance is ~2x better than gcc 3.4 generated code and in "abso-
+@ lute" terms is ~2250 cycles per 64-byte block or ~35 cycles per
+@ byte [on single-issue Xscale PXA250 core].
+
+@ July 2010.
+@
+@ Rescheduling for dual-issue pipeline resulted in 22% improvement on
+@ Cortex A8 core and ~20 cycles per processed byte.
+
+@ February 2011.
+@
+@ Profiler-assisted and platform-specific optimization resulted in 16%
+@ improvement on Cortex A8 core and ~15.4 cycles per processed byte.
+
+@ September 2013.
+@
+@ Add NEON implementation. On Cortex A8 it was measured to process one
+@ byte in 12.5 cycles or 23% faster than integer-only code. Snapdragon
+@ S4 does it in 12.5 cycles too, but it's 50% faster than integer-only
+@ code (meaning that latter performs sub-optimally, nothing was done
+@ about it).
+
+@ May 2014.
+@
+@ Add ARMv8 code path performing at 2.0 cpb on Apple A7.
+
 #ifndef __KERNEL__
 # include <GFp/arm_arch.h>
 #else
@@ -2791,3 +2831,4 @@ sha256_block_data_order_armv8:
 #endif
 #endif
 #endif  // !OPENSSL_NO_ASM
+.section	.note.GNU-stack,"",%progbits

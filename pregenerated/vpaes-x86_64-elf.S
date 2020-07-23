@@ -28,6 +28,7 @@
 .type	_vpaes_encrypt_core,@function
 .align	16
 _vpaes_encrypt_core:
+.cfi_startproc	
 	movq	%rdx,%r9
 	movq	$16,%r11
 	movl	240(%rdx),%eax
@@ -108,7 +109,183 @@ _vpaes_encrypt_core:
 	pxor	%xmm4,%xmm0
 .byte	102,15,56,0,193
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_encrypt_core,.-_vpaes_encrypt_core
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.type	_vpaes_encrypt_core_2x,@function
+.align	16
+_vpaes_encrypt_core_2x:
+.cfi_startproc	
+	movq	%rdx,%r9
+	movq	$16,%r11
+	movl	240(%rdx),%eax
+	movdqa	%xmm9,%xmm1
+	movdqa	%xmm9,%xmm7
+	movdqa	.Lk_ipt(%rip),%xmm2
+	movdqa	%xmm2,%xmm8
+	pandn	%xmm0,%xmm1
+	pandn	%xmm6,%xmm7
+	movdqu	(%r9),%xmm5
+
+	psrld	$4,%xmm1
+	psrld	$4,%xmm7
+	pand	%xmm9,%xmm0
+	pand	%xmm9,%xmm6
+.byte	102,15,56,0,208
+.byte	102,68,15,56,0,198
+	movdqa	.Lk_ipt+16(%rip),%xmm0
+	movdqa	%xmm0,%xmm6
+.byte	102,15,56,0,193
+.byte	102,15,56,0,247
+	pxor	%xmm5,%xmm2
+	pxor	%xmm5,%xmm8
+	addq	$16,%r9
+	pxor	%xmm2,%xmm0
+	pxor	%xmm8,%xmm6
+	leaq	.Lk_mc_backward(%rip),%r10
+	jmp	.Lenc2x_entry
+
+.align	16
+.Lenc2x_loop:
+
+	movdqa	.Lk_sb1(%rip),%xmm4
+	movdqa	.Lk_sb1+16(%rip),%xmm0
+	movdqa	%xmm4,%xmm12
+	movdqa	%xmm0,%xmm6
+.byte	102,15,56,0,226
+.byte	102,69,15,56,0,224
+.byte	102,15,56,0,195
+.byte	102,65,15,56,0,243
+	pxor	%xmm5,%xmm4
+	pxor	%xmm5,%xmm12
+	movdqa	.Lk_sb2(%rip),%xmm5
+	movdqa	%xmm5,%xmm13
+	pxor	%xmm4,%xmm0
+	pxor	%xmm12,%xmm6
+	movdqa	-64(%r11,%r10,1),%xmm1
+
+.byte	102,15,56,0,234
+.byte	102,69,15,56,0,232
+	movdqa	(%r11,%r10,1),%xmm4
+
+	movdqa	.Lk_sb2+16(%rip),%xmm2
+	movdqa	%xmm2,%xmm8
+.byte	102,15,56,0,211
+.byte	102,69,15,56,0,195
+	movdqa	%xmm0,%xmm3
+	movdqa	%xmm6,%xmm11
+	pxor	%xmm5,%xmm2
+	pxor	%xmm13,%xmm8
+.byte	102,15,56,0,193
+.byte	102,15,56,0,241
+	addq	$16,%r9
+	pxor	%xmm2,%xmm0
+	pxor	%xmm8,%xmm6
+.byte	102,15,56,0,220
+.byte	102,68,15,56,0,220
+	addq	$16,%r11
+	pxor	%xmm0,%xmm3
+	pxor	%xmm6,%xmm11
+.byte	102,15,56,0,193
+.byte	102,15,56,0,241
+	andq	$0x30,%r11
+	subq	$1,%rax
+	pxor	%xmm3,%xmm0
+	pxor	%xmm11,%xmm6
+
+.Lenc2x_entry:
+
+	movdqa	%xmm9,%xmm1
+	movdqa	%xmm9,%xmm7
+	movdqa	.Lk_inv+16(%rip),%xmm5
+	movdqa	%xmm5,%xmm13
+	pandn	%xmm0,%xmm1
+	pandn	%xmm6,%xmm7
+	psrld	$4,%xmm1
+	psrld	$4,%xmm7
+	pand	%xmm9,%xmm0
+	pand	%xmm9,%xmm6
+.byte	102,15,56,0,232
+.byte	102,68,15,56,0,238
+	movdqa	%xmm10,%xmm3
+	movdqa	%xmm10,%xmm11
+	pxor	%xmm1,%xmm0
+	pxor	%xmm7,%xmm6
+.byte	102,15,56,0,217
+.byte	102,68,15,56,0,223
+	movdqa	%xmm10,%xmm4
+	movdqa	%xmm10,%xmm12
+	pxor	%xmm5,%xmm3
+	pxor	%xmm13,%xmm11
+.byte	102,15,56,0,224
+.byte	102,68,15,56,0,230
+	movdqa	%xmm10,%xmm2
+	movdqa	%xmm10,%xmm8
+	pxor	%xmm5,%xmm4
+	pxor	%xmm13,%xmm12
+.byte	102,15,56,0,211
+.byte	102,69,15,56,0,195
+	movdqa	%xmm10,%xmm3
+	movdqa	%xmm10,%xmm11
+	pxor	%xmm0,%xmm2
+	pxor	%xmm6,%xmm8
+.byte	102,15,56,0,220
+.byte	102,69,15,56,0,220
+	movdqu	(%r9),%xmm5
+
+	pxor	%xmm1,%xmm3
+	pxor	%xmm7,%xmm11
+	jnz	.Lenc2x_loop
+
+
+	movdqa	-96(%r10),%xmm4
+	movdqa	-80(%r10),%xmm0
+	movdqa	%xmm4,%xmm12
+	movdqa	%xmm0,%xmm6
+.byte	102,15,56,0,226
+.byte	102,69,15,56,0,224
+	pxor	%xmm5,%xmm4
+	pxor	%xmm5,%xmm12
+.byte	102,15,56,0,195
+.byte	102,65,15,56,0,243
+	movdqa	64(%r11,%r10,1),%xmm1
+
+	pxor	%xmm4,%xmm0
+	pxor	%xmm12,%xmm6
+.byte	102,15,56,0,193
+.byte	102,15,56,0,241
+	.byte	0xf3,0xc3
+.cfi_endproc	
+.size	_vpaes_encrypt_core_2x,.-_vpaes_encrypt_core_2x
 
 
 
@@ -118,6 +295,7 @@ _vpaes_encrypt_core:
 .type	_vpaes_schedule_core,@function
 .align	16
 _vpaes_schedule_core:
+.cfi_startproc	
 
 
 
@@ -235,6 +413,7 @@ _vpaes_schedule_core:
 	pxor	%xmm6,%xmm6
 	pxor	%xmm7,%xmm7
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
 
@@ -258,6 +437,7 @@ _vpaes_schedule_core:
 .type	_vpaes_schedule_round,@function
 .align	16
 _vpaes_schedule_round:
+.cfi_startproc	
 
 	pxor	%xmm1,%xmm1
 .byte	102,65,15,58,15,200,15
@@ -311,6 +491,7 @@ _vpaes_schedule_low_round:
 	pxor	%xmm7,%xmm0
 	movdqa	%xmm0,%xmm7
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_round,.-_vpaes_schedule_round
 
 
@@ -325,6 +506,7 @@ _vpaes_schedule_low_round:
 .type	_vpaes_schedule_transform,@function
 .align	16
 _vpaes_schedule_transform:
+.cfi_startproc	
 	movdqa	%xmm9,%xmm1
 	pandn	%xmm0,%xmm1
 	psrld	$4,%xmm1
@@ -335,6 +517,7 @@ _vpaes_schedule_transform:
 .byte	102,15,56,0,193
 	pxor	%xmm2,%xmm0
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_transform,.-_vpaes_schedule_transform
 
 
@@ -363,6 +546,7 @@ _vpaes_schedule_transform:
 .type	_vpaes_schedule_mangle,@function
 .align	16
 _vpaes_schedule_mangle:
+.cfi_startproc	
 	movdqa	%xmm0,%xmm4
 	movdqa	.Lk_mc_forward(%rip),%xmm5
 
@@ -383,6 +567,7 @@ _vpaes_schedule_mangle:
 	andq	$0x30,%r8
 	movdqu	%xmm3,(%rdx)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_schedule_mangle,.-_vpaes_schedule_mangle
 
 
@@ -393,6 +578,13 @@ _vpaes_schedule_mangle:
 .type	GFp_vpaes_set_encrypt_key,@function
 .align	16
 GFp_vpaes_set_encrypt_key:
+.cfi_startproc	
+#ifdef BORINGSSL_DISPATCH_TEST
+.extern	BORINGSSL_function_hit
+.hidden BORINGSSL_function_hit
+	movb	$1,BORINGSSL_function_hit+5(%rip)
+#endif
+
 	movl	%esi,%eax
 	shrl	$5,%eax
 	addl	$5,%eax
@@ -403,6 +595,7 @@ GFp_vpaes_set_encrypt_key:
 	call	_vpaes_schedule_core
 	xorl	%eax,%eax
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	GFp_vpaes_set_encrypt_key,.-GFp_vpaes_set_encrypt_key
 
 .globl	GFp_vpaes_encrypt
@@ -410,12 +603,77 @@ GFp_vpaes_set_encrypt_key:
 .type	GFp_vpaes_encrypt,@function
 .align	16
 GFp_vpaes_encrypt:
+.cfi_startproc	
 	movdqu	(%rdi),%xmm0
 	call	_vpaes_preheat
 	call	_vpaes_encrypt_core
 	movdqu	%xmm0,(%rsi)
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	GFp_vpaes_encrypt,.-GFp_vpaes_encrypt
+.globl	GFp_vpaes_ctr32_encrypt_blocks
+.hidden GFp_vpaes_ctr32_encrypt_blocks
+.type	GFp_vpaes_ctr32_encrypt_blocks,@function
+.align	16
+GFp_vpaes_ctr32_encrypt_blocks:
+.cfi_startproc	
+
+	xchgq	%rcx,%rdx
+	testq	%rcx,%rcx
+	jz	.Lctr32_abort
+	movdqu	(%r8),%xmm0
+	movdqa	.Lctr_add_one(%rip),%xmm8
+	subq	%rdi,%rsi
+	call	_vpaes_preheat
+	movdqa	%xmm0,%xmm6
+	pshufb	.Lrev_ctr(%rip),%xmm6
+
+	testq	$1,%rcx
+	jz	.Lctr32_prep_loop
+
+
+
+	movdqu	(%rdi),%xmm7
+	call	_vpaes_encrypt_core
+	pxor	%xmm7,%xmm0
+	paddd	%xmm8,%xmm6
+	movdqu	%xmm0,(%rsi,%rdi,1)
+	subq	$1,%rcx
+	leaq	16(%rdi),%rdi
+	jz	.Lctr32_done
+
+.Lctr32_prep_loop:
+
+
+	movdqa	%xmm6,%xmm14
+	movdqa	%xmm6,%xmm15
+	paddd	%xmm8,%xmm15
+
+.Lctr32_loop:
+	movdqa	.Lrev_ctr(%rip),%xmm1
+	movdqa	%xmm14,%xmm0
+	movdqa	%xmm15,%xmm6
+.byte	102,15,56,0,193
+.byte	102,15,56,0,241
+	call	_vpaes_encrypt_core_2x
+	movdqu	(%rdi),%xmm1
+	movdqu	16(%rdi),%xmm2
+	movdqa	.Lctr_add_two(%rip),%xmm3
+	pxor	%xmm1,%xmm0
+	pxor	%xmm2,%xmm6
+	paddd	%xmm3,%xmm14
+	paddd	%xmm3,%xmm15
+	movdqu	%xmm0,(%rsi,%rdi,1)
+	movdqu	%xmm6,16(%rsi,%rdi,1)
+	subq	$2,%rcx
+	leaq	32(%rdi),%rdi
+	jnz	.Lctr32_loop
+
+.Lctr32_done:
+.Lctr32_abort:
+	.byte	0xf3,0xc3
+.cfi_endproc	
+.size	GFp_vpaes_ctr32_encrypt_blocks,.-GFp_vpaes_ctr32_encrypt_blocks
 
 
 
@@ -425,6 +683,7 @@ GFp_vpaes_encrypt:
 .type	_vpaes_preheat,@function
 .align	16
 _vpaes_preheat:
+.cfi_startproc	
 	leaq	.Lk_s0F(%rip),%r10
 	movdqa	-32(%r10),%xmm10
 	movdqa	-16(%r10),%xmm11
@@ -434,6 +693,7 @@ _vpaes_preheat:
 	movdqa	80(%r10),%xmm15
 	movdqa	96(%r10),%xmm14
 	.byte	0xf3,0xc3
+.cfi_endproc	
 .size	_vpaes_preheat,.-_vpaes_preheat
 
 
@@ -495,4 +755,19 @@ _vpaes_consts:
 .Lk_deskew:
 .quad	0x07E4A34047A4E300, 0x1DFEB95A5DBEF91A
 .quad	0x5F36B5DC83EA6900, 0x2841C2ABF49D1E77
+
+
+.Lrev_ctr:
+.quad	0x0706050403020100, 0x0c0d0e0f0b0a0908
+
+
+.Lctr_add_one:
+.quad	0x0000000000000000, 0x0000000100000000
+.Lctr_add_two:
+.quad	0x0000000000000000, 0x0000000200000000
+
+.byte	86,101,99,116,111,114,32,80,101,114,109,117,116,97,116,105,111,110,32,65,69,83,32,102,111,114,32,120,56,54,95,54,52,47,83,83,83,69,51,44,32,77,105,107,101,32,72,97,109,98,117,114,103,32,40,83,116,97,110,102,111,114,100,32,85,110,105,118,101,114,115,105,116,121,41,0
+.align	64
+.size	_vpaes_consts,.-_vpaes_consts
 #endif
+.section	.note.GNU-stack,"",@progbits

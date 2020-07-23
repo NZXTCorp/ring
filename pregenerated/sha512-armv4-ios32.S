@@ -1,10 +1,11 @@
 // This file is generated from a similarly-named Perl script in the BoringSSL
 // source tree. Do not edit by hand.
 
-#if defined(__has_feature)
+#if !defined(__has_feature)
+#define __has_feature(x) 0
+#endif
 #if __has_feature(memory_sanitizer) && !defined(OPENSSL_NO_ASM)
 #define OPENSSL_NO_ASM
-#endif
 #endif
 
 #if !defined(OPENSSL_NO_ASM)
@@ -14,6 +15,54 @@
 @ this file except in compliance with the License.  You can obtain a copy
 @ in the file LICENSE in the source distribution or at
 @ https://www.openssl.org/source/license.html
+
+
+@ ====================================================================
+@ Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+@ project. The module is, however, dual licensed under OpenSSL and
+@ CRYPTOGAMS licenses depending on where you obtain it. For further
+@ details see http://www.openssl.org/~appro/cryptogams/.
+@
+@ Permission to use under GPL terms is granted.
+@ ====================================================================
+
+@ SHA512 block procedure for ARMv4. September 2007.
+
+@ This code is ~4.5 (four and a half) times faster than code generated
+@ by gcc 3.4 and it spends ~72 clock cycles per byte [on single-issue
+@ Xscale PXA250 core].
+@
+@ July 2010.
+@
+@ Rescheduling for dual-issue pipeline resulted in 6% improvement on
+@ Cortex A8 core and ~40 cycles per processed byte.
+
+@ February 2011.
+@
+@ Profiler-assisted and platform-specific optimization resulted in 7%
+@ improvement on Coxtex A8 core and ~38 cycles per byte.
+
+@ March 2011.
+@
+@ Add NEON implementation. On Cortex A8 it was measured to process
+@ one byte in 23.3 cycles or ~60% faster than integer-only code.
+
+@ August 2012.
+@
+@ Improve NEON performance by 12% on Snapdragon S4. In absolute
+@ terms it's 22.6 cycles per byte, which is disappointing result.
+@ Technical writers asserted that 3-way S4 pipeline can sustain
+@ multiple NEON instructions per cycle, but dual NEON issue could
+@ not be observed, see http://www.openssl.org/~appro/Snapdragon-S4.html
+@ for further details. On side note Cortex-A15 processes one byte in
+@ 16 cycles.
+
+@ Byte order [in]dependence. =========================================
+@
+@ Originally caller was expected to maintain specific *dword* order in
+@ h[0-7], namely with most significant dword at *lower* address, which
+@ was reflected in below two parameters as 0 and 4. Now caller is
+@ expected to maintain native byte order for whole 64-bit values.
 #ifndef __KERNEL__
 # include <GFp/arm_arch.h>
 # define VFP_ABI_PUSH	vstmdb	sp!,{d8-d15}
