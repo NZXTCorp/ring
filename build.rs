@@ -33,8 +33,7 @@
     unused_import_braces,
     unused_qualifications,
     unused_results,
-    variant_size_differences,
-    warnings
+    variant_size_differences
 )]
 
 // In the `pregenerate_asm_main()` case we don't want to access (Cargo)
@@ -250,14 +249,14 @@ const MSVC_OBJ_OPT: &str = "/Fo";
 const MSVC_OBJ_EXT: &str = "obj";
 
 fn main() {
-    if let Ok(package_name) = std::env::var("CARGO_PKG_NAME") {
-        if package_name == "ring" {
-            ring_build_rs_main();
-            return;
-        }
-    }
+    let is_ring_package = std::env::var("CARGO_PKG_NAME") == Ok("ring".to_string());
 
-    pregenerate_asm_main();
+    //NOTE: pull ahead to force pregenerate assemblies before building library, then disabled it
+    //pregenerate_asm_main();
+
+    if is_ring_package {
+        ring_build_rs_main();
+    }
 }
 
 fn ring_build_rs_main() {
@@ -301,6 +300,9 @@ fn ring_build_rs_main() {
 
 fn pregenerate_asm_main() {
     let pregenerated = PathBuf::from(PREGENERATED);
+    if pregenerated.exists() {
+        std::fs::remove_dir_all(&pregenerated).unwrap();
+    }
     std::fs::create_dir(&pregenerated).unwrap();
     let pregenerated_tmp = pregenerated.join("tmp");
     std::fs::create_dir(&pregenerated_tmp).unwrap();
@@ -377,8 +379,8 @@ fn build_c_code(target: &Target, pregenerated: PathBuf, out_dir: &Path) {
         })
         .unwrap();
 
-    let use_pregenerated = !target.is_git;
-    let warnings_are_errors = target.is_git;
+    let use_pregenerated = true;
+    let warnings_are_errors = false;
 
     let asm_dir = if use_pregenerated {
         &pregenerated
@@ -496,7 +498,7 @@ fn build_library(
         // Handled below.
         let _ = c.cargo_metadata(false);
 
-        c.compile(
+        c.static_crt(true).compile(
             lib_path
                 .file_name()
                 .and_then(|f| f.to_str())
@@ -615,7 +617,7 @@ fn cc(
         let _ = c.flag("-U_FORTIFY_SOURCE");
     }
 
-    let mut c = c.get_compiler().to_command();
+    let mut c = c.static_crt(true).get_compiler().to_command();
     let _ = c
         .arg("-c")
         .arg(format!(
