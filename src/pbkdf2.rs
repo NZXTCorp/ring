@@ -112,7 +112,7 @@
 //!     assert!(db.verify_password("alice", "@74d7]404j|W}6u").is_ok());
 //! }
 
-use crate::{constant_time, digest, error, hmac, polyfill};
+use crate::{constant_time, digest, error, hmac};
 use core::num::NonZeroU32;
 
 /// A PBKDF2 algorithm.
@@ -170,7 +170,7 @@ pub fn derive(
     let secret = hmac::Key::new(algorithm.0, secret);
 
     // Clear |out|.
-    polyfill::slice::fill(out, 0);
+    out.fill(0);
 
     let mut idx: u32 = 0;
 
@@ -189,9 +189,7 @@ fn derive_block(secret: &hmac::Key, iterations: NonZeroU32, salt: &[u8], idx: u3
 
     let mut remaining: u32 = iterations.into();
     loop {
-        for i in 0..out.len() {
-            out[i] ^= u.as_ref()[i];
-        }
+        out.iter_mut().zip(u.as_ref()).for_each(|(o, u)| *o ^= *u);
 
         if remaining == 1 {
             break;
@@ -247,7 +245,7 @@ pub fn verify(
         idx = idx.checked_add(1).expect("derived key too long");
 
         let derived_chunk = &mut derived_buf[..previously_derived_chunk.len()];
-        polyfill::slice::fill(derived_chunk, 0);
+        derived_chunk.fill(0);
 
         derive_block(&secret, iterations, salt, idx, derived_chunk);
 

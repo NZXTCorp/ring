@@ -59,8 +59,7 @@ need to be installed.
 Benchmarks
 ----------
 
-*ring*'s benchmarks are in the
-[crypto-bench](https://github.com/briansmith/crypto-bench) project. Because
+*ring*'s benchmarks are located in the `benches` folder of this repository. Because
 there is lots of platform-specific code in *ring*, and because *ring* chooses
 dynamically at runtime which optimized implementation of each crypto primitive
 to use, it is very difficult to publish a useful single set of benchmarks;
@@ -104,8 +103,7 @@ contribute already, see these curated lists of open issues:
 
 In addition, we're always interested in these kinds of contributions:
 
-* Expanded benchmarks in the
-  [crypto-bench](https://github.com/briansmith/crypto-bench) project.
+* Expanding the benchmarks in the `benches` folder.
 * Additional testing code and additional test vectors.
 * Static analysis and fuzzing in the continuous integration.
 * Support for more platforms in the continuous integration (e.g. Android, iOS,
@@ -143,12 +141,10 @@ We do not spend effort on backward compatibility with older releases of
 Rust; for example, when Rust 1.53 (Stable) is released, we don't care if
 *ring* stops working with Rust 1.52 or earlier versions. Thus, we can
 always use the latest *stable* features of the Rust language in *ring*.
-So far we've never used unstable features of Rust except for the benchmarking
-support (`#[bench]`), and we're hoping to remove even *that* Nightly
-dependency. Sometimes things are broken with Nightly Rust. We prioritize
-keeping things working on Stable; if things break on Beta and Nightly then
-that breakage won't be considered urgent, though it will eventually get
-resolved, one way or another.
+As a general policy, we don't use unstable features of Rust. Sometimes
+things are broken with Nightly Rust. We prioritize keeping things working on
+Stable; if things break on Beta and Nightly then that breakage won't be
+considered urgent, though we will try to resolve it.
 
 We prefer to improve *ring*'s API over keeping *ring*'s API stable. We
 don't keep old APIs around for the sake of backward compatibility; we prefer

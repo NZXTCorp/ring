@@ -1,4 +1,6 @@
 name: ci
+permissions:
+  contents: read
 on:
   pull_request:
   push:
@@ -10,12 +12,14 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: rustfmt
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
       - run: cargo fmt --all -- --check
 
   clippy:
@@ -25,13 +29,15 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           toolchain: stable
           profile: minimal
           components: clippy
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - run: mk/clippy.sh
 
@@ -42,22 +48,24 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           toolchain: stable
           profile: minimal
 
-      - uses: actions/cache@v2
+      - uses: briansmith/actions-cache@v2
         with:
           path: |
             ~/.cargo/bin/cargo-audit
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: ${{ runner.os }}-v2-cargo-audit-0.13.1
+          key: ${{ runner.os }}-v2-cargo-audit-0.14.1
 
-      - run: cargo install cargo-audit --vers "0.13.1"
+      - run: cargo install cargo-audit --locked --vers "0.14.1"
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - run: cargo generate-lockfile
 
@@ -70,22 +78,24 @@ jobs:
     runs-on: ubuntu-18.04
 
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           toolchain: stable
           profile: minimal
 
-      - uses: actions/cache@v2
+      - uses: briansmith/actions-cache@v2
         with:
           path: |
             ~/.cargo/bin/cargo-deny
             ~/.cargo/.crates.toml
             ~/.cargo/.crates2.json
-          key: ${{ runner.os }}-v2-cargo-deny-0.8.4
+          key: ${{ runner.os }}-v2-cargo-deny-locked-0.9.1
 
-      - run: cargo install cargo-deny --vers "0.8.4"
+      - run: cargo install cargo-deny --locked --vers "0.9.1"
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - run: cargo deny check
 
@@ -107,13 +117,15 @@ jobs:
           - target: x86_64-unknown-linux-gnu
 
     steps:
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           override: true
           target: ${{ matrix.target }}
           toolchain: ${{ matrix.rust_channel }}
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - run: |
           cargo doc --all-features
@@ -125,11 +137,13 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
-      - run: powershell -ExecutionPolicy Bypass ./mk/install-build-tools.ps1
+      - run: ./mk/install-build-tools.ps1
 
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           toolchain: stable
           profile: minimal
@@ -173,7 +187,7 @@ jobs:
         rust_channel:
           - stable
           - nightly
-          - 1.47.0 # MSRV
+          - 1.52.1 # MSRV
           - beta
 
         exclude:
@@ -264,17 +278,17 @@ jobs:
       - if: ${{ contains(matrix.host_os, 'ubuntu') }}
         run: sudo apt-get update -y
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - if: ${{ !contains(matrix.host_os, 'windows') }}
         run: mk/install-build-tools.sh --target=${{ matrix.target }} ${{ matrix.features }}
 
       - if: ${{ contains(matrix.host_os, 'windows') }}
-        run: >
-          (powershell -ExecutionPolicy Bypass ./mk/install-build-tools.ps1) -and
-          ("$pwd\target\tools" >> $env:GITHUB_PATH)
+        run: ./mk/install-build-tools.ps1
 
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           override: true
           target: ${{ matrix.target }}
@@ -288,11 +302,23 @@ jobs:
 
       - if: ${{ !contains(matrix.host_os, 'windows') }}
         run: |
-          mk/cargo.sh test -vv --target=${{ matrix.target }} ${{ matrix.cargo_options }} ${{ matrix.features }} ${{ matrix.mode }}
+          mk/cargo.sh test -vv --all-targets --target=${{ matrix.target }} ${{ matrix.cargo_options }} ${{ matrix.features }} ${{ matrix.mode }}
 
       - if: ${{ contains(matrix.host_os, 'windows') }}
         run: |
-          cargo test -vv --target=${{ matrix.target }} ${{ matrix.cargo_options }} ${{ matrix.features }} ${{ matrix.mode }}
+          cargo test -vv --all-targets --target=${{ matrix.target }} ${{ matrix.cargo_options }} ${{ matrix.features }} ${{ matrix.mode }}
+
+      # Check that all the needed symbol renaming was done.
+      # TODO: Do this check on Windows too.
+      # TODO: Check iOS too.
+      # TODO: Do this on Apple-hosted release builds too; currently these fail with:
+      #       Unknown attribute kind (528)
+      #       (Producer: 'LLVM12.0.0-rust-1.54.0-nightly'
+      #       Reader: 'LLVM APPLE_1_1200.0.32.29_0')
+      - if: ${{ matrix.target != 'aarch64-apple-ios' &&
+                !contains(matrix.host_os, 'windows') &&
+                (!contains(matrix.host_os, 'macos') || matrix.mode != '--release') }}
+        run: mk/check-symbol-prefixes.sh
 
   # The wasm32-unknown-unknown targets have a different set of feature sets and
   # an additional `webdriver` dimension.
@@ -326,13 +352,15 @@ jobs:
       - if: ${{ contains(matrix.host_os, 'ubuntu') }}
         run: sudo apt-get update -y
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - run: cargo generate-lockfile
 
       - run: mk/install-build-tools.sh --target=${{ matrix.target }} ${{ matrix.features }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           override: true
           target: ${{ matrix.target }}
@@ -340,6 +368,10 @@ jobs:
 
       - run: |
           ${{ matrix.webdriver }} mk/cargo.sh test -vv --target=${{ matrix.target }} ${{ matrix.features }} ${{ matrix.mode }}
+
+      # Check that all the needed symbol renaming was done.
+      # TODO: Do this check on Windows too.
+      - run: mk/check-symbol-prefixes.sh
 
   coverage:
     # Don't run duplicate `push` jobs for the repo owner's PRs.
@@ -396,12 +428,14 @@ jobs:
       - if: ${{ contains(matrix.host_os, 'ubuntu') }}
         run: sudo apt-get update -y
 
-      - uses: actions/checkout@v2
+      - uses: briansmith/actions-checkout@v2
+        with:
+          persist-credentials: false
 
       - if: ${{ !contains(matrix.host_os, 'windows') }}
         run: RING_COVERAGE=1 mk/install-build-tools.sh --target=${{ matrix.target }} ${{ matrix.features }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: briansmith/actions-rs-toolchain@v1
         with:
           override: true
           target: ${{ matrix.target }}
@@ -414,7 +448,7 @@ jobs:
         run: |
           RING_COVERAGE=1 mk/cargo.sh +${{ matrix.rust_channel }} test -vv --target=${{ matrix.target }} ${{ matrix.cargo_options }} ${{ matrix.features }} ${{ matrix.mode }}
 
-      - uses: codecov/codecov-action@v1
+      - uses: briansmith/codecov-codecov-action@v1
         with:
           directory: ./target/${{ matrix.target }}/debug/coverage/reports
           fail_ci_if_error: true

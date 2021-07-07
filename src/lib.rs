@@ -45,6 +45,8 @@
 //!        requiring these hacks, and without requiring a C compiler.)
 //! </table>
 
+// When running mk/package.sh, don't actually build any code.
+#![cfg(not(pregenerate_asm_only))]
 #![doc(html_root_url = "https://briansmith.org/rustdoc/")]
 #![allow(
     missing_copy_implementations,
@@ -64,6 +66,9 @@ extern crate alloc;
 
 #[macro_use]
 mod debug;
+
+#[macro_use]
+mod prefixed;
 
 #[macro_use]
 pub mod test;

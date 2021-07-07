@@ -12,7 +12,7 @@
  * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE. */
 
-#include <GFp/base.h>
+#include <ring-core/base.h>
 
 #include "../../internal.h"
 
@@ -111,7 +111,7 @@
 // is a prime that is much larger than 2^w. It also only holds when windows
 // are applied from most significant to least significant, doubling between each
 // window. It does not apply to more complex table strategies such as
-// |EC_GFp_nistz256_method|.
+// |EC_nistz256_method|.
 //
 // PROOF:
 //

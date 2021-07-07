@@ -33,6 +33,26 @@ sub ::AUTOLOAD
     &generic($opcode,@_) or die "undefined subroutine \&$AUTOLOAD";
 }
 
+# record_function_hit(int) writes a byte with value one to the given offset of
+# |BORINGSSL_function_hit|, but only if BORINGSSL_DISPATCH_TEST is defined.
+# This is used in impl_dispatch_test.cc to test whether the expected assembly
+# functions are triggered by high-level API calls.
+sub ::record_function_hit
+{ my($index)=@_;
+    &preprocessor_ifdef("BORINGSSL_DISPATCH_TEST");
+    &push("ebx");
+    &push("edx");
+    &call(&label("pic"));
+    &set_label("pic");
+    &blindpop("ebx");
+    &lea("ebx",&DWP("BORINGSSL_function_hit+$index"."-".&label("pic"),"ebx"));
+    &mov("edx", 1);
+    &movb(&BP(0, "ebx"), "dl");
+    &pop("edx");
+    &pop("ebx");
+    &preprocessor_endif();
+}
+
 sub ::emit
 { my $opcode=shift;
 
@@ -264,16 +284,12 @@ $comment source tree. Do not edit by hand.
 ___
     if ($win32) {
         print <<___ unless $masm;
-%ifdef BORINGSSL_PREFIX
-%include "boringssl_prefix_symbols_nasm.inc"
-%endif
+%include "ring_core_generated/prefix_symbols_nasm.inc"
 ___
     } else {
         print <<___;
 #if defined(__i386__)
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#include "ring_core_generated/prefix_symbols_asm.h"
 ___
     }
     print @out;

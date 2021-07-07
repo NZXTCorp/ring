@@ -40,6 +40,7 @@ pub static AES_256_GCM: aead::Algorithm = aead::Algorithm {
     max_input_len: AES_GCM_MAX_INPUT_LEN,
 };
 
+#[derive(Clone)]
 pub struct Key {
     gcm_key: gcm::Key, // First because it has a large alignment requirement.
     aes_key: aes::Key,
@@ -60,13 +61,13 @@ fn init(
 ) -> Result<aead::KeyInner, error::Unspecified> {
     let aes_key = aes::Key::new(key, variant, cpu_features)?;
     let gcm_key = gcm::Key::new(aes_key.encrypt_block(Block::zero()), cpu_features);
-    Ok(aead::KeyInner::AesGcm(Key { aes_key, gcm_key }))
+    Ok(aead::KeyInner::AesGcm(Key { gcm_key, aes_key }))
 }
 
 const CHUNK_BLOCKS: usize = 3 * 1024 / 16;
 
 fn aes_gcm_seal(key: &aead::KeyInner, nonce: Nonce, aad: Aad<&[u8]>, in_out: &mut [u8]) -> Tag {
-    let Key { aes_key, gcm_key } = match key {
+    let Key { gcm_key, aes_key } = match key {
         aead::KeyInner::AesGcm(key) => key,
         _ => unreachable!(),
     };
@@ -84,8 +85,8 @@ fn aes_gcm_seal(key: &aead::KeyInner, nonce: Nonce, aad: Aad<&[u8]>, in_out: &mu
             in_out
         } else {
             use crate::c;
-            extern "C" {
-                fn GFp_aesni_gcm_encrypt(
+            prefixed_extern! {
+                fn aesni_gcm_encrypt(
                     input: *const u8,
                     output: *mut u8,
                     len: c::size_t,
@@ -95,7 +96,7 @@ fn aes_gcm_seal(key: &aead::KeyInner, nonce: Nonce, aad: Aad<&[u8]>, in_out: &mu
                 ) -> c::size_t;
             }
             let processed = unsafe {
-                GFp_aesni_gcm_encrypt(
+                aesni_gcm_encrypt(
                     in_out.as_ptr(),
                     in_out.as_mut_ptr(),
                     in_out.len(),
@@ -139,7 +140,7 @@ fn aes_gcm_open(
     in_out: &mut [u8],
     src: RangeFrom<usize>,
 ) -> Tag {
-    let Key { aes_key, gcm_key } = match key {
+    let Key { gcm_key, aes_key } = match key {
         aead::KeyInner::AesGcm(key) => key,
         _ => unreachable!(),
     };
@@ -161,8 +162,8 @@ fn aes_gcm_open(
         } else {
             use crate::c;
 
-            extern "C" {
-                fn GFp_aesni_gcm_decrypt(
+            prefixed_extern! {
+                fn aesni_gcm_decrypt(
                     input: *const u8,
                     output: *mut u8,
                     len: c::size_t,
@@ -173,7 +174,7 @@ fn aes_gcm_open(
             }
 
             let processed = unsafe {
-                GFp_aesni_gcm_decrypt(
+                aesni_gcm_decrypt(
                     in_out[src.clone()].as_ptr(),
                     in_out.as_mut_ptr(),
                     in_out.len() - src.start,

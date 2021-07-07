@@ -12,13 +12,14 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use super::{
-    bigint::{self, Prime},
-    verification, RsaEncoding, N,
-};
+use super::{padding::RsaEncoding, public, N};
+
 /// RSA PKCS#1 1.5 signatures.
 use crate::{
-    arithmetic::montgomery::R,
+    arithmetic::{
+        bigint::{self, Prime},
+        montgomery::R,
+    },
     bits, digest,
     error::{self, KeyRejected},
     io::{self, der, der_writer},
@@ -33,7 +34,7 @@ pub struct RsaKeyPair {
     qInv: bigint::Elem<P, R>,
     qq: bigint::Modulus<QQ>,
     q_mod_n: bigint::Elem<N, R>,
-    public: verification::Key,
+    public: public::Key,
     public_key: RsaSubjectPublicKey,
 }
 
@@ -230,7 +231,7 @@ impl RsaKeyPair {
         // Also, this limit might help with memory management decisions later.
 
         // Step 1.c. We validate e >= 65537.
-        let public_key = verification::Key::from_modulus_and_exponent(
+        let public_key = public::Key::from_modulus_and_exponent(
             n.big_endian_without_leading_zero_as_input(),
             e.big_endian_without_leading_zero_as_input(),
             bits::BitLength::from_usize_bits(2048),
@@ -379,8 +380,7 @@ impl RsaKeyPair {
     pub fn public_modulus_len(&self) -> usize {
         self.public_key
             .modulus()
-            .big_endian_without_leading_zero_as_input()
-            .as_slice_less_safe()
+            .big_endian_without_leading_zero()
             .len()
     }
 }

@@ -85,7 +85,7 @@ impl BlockContext {
         padding_pos += 1;
 
         if padding_pos > block_len - self.algorithm.len_len {
-            polyfill::slice::fill(&mut pending[padding_pos..block_len], 0);
+            pending[padding_pos..block_len].fill(0);
             unsafe {
                 (self.algorithm.block_data_order)(&mut self.state, pending.as_ptr(), 1);
             }
@@ -94,7 +94,7 @@ impl BlockContext {
             padding_pos = 0;
         }
 
-        polyfill::slice::fill(&mut pending[padding_pos..(block_len - 8)], 0);
+        pending[padding_pos..(block_len - 8)].fill(0);
 
         // Output the length, in bits, in big endian order.
         let completed_data_bits = self
@@ -339,7 +339,7 @@ pub static SHA256: Algorithm = Algorithm {
     chaining_len: SHA256_OUTPUT_LEN,
     block_len: 512 / 8,
     len_len: 64 / 8,
-    block_data_order: sha2::GFp_sha256_block_data_order,
+    block_data_order: sha2::sha256_block_data_order,
     format_output: sha256_format_output,
     initial_state: State {
         as32: [
@@ -364,7 +364,7 @@ pub static SHA384: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [
@@ -389,7 +389,7 @@ pub static SHA512: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [
@@ -418,7 +418,7 @@ pub static SHA512_256: Algorithm = Algorithm {
     chaining_len: SHA512_OUTPUT_LEN,
     block_len: SHA512_BLOCK_LEN,
     len_len: SHA512_LEN_LEN,
-    block_data_order: sha2::GFp_sha512_block_data_order,
+    block_data_order: sha2::sha512_block_data_order,
     format_output: sha512_format_output,
     initial_state: State {
         as64: [

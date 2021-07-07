@@ -56,7 +56,9 @@
 
 // This file should be the first included by all BoringSSL headers.
 
-#include <GFp/type_check.h>
+#include <ring_core_generated/prefix_symbols.h>
+
+#include <ring-core/type_check.h>
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma warning(push, 3)

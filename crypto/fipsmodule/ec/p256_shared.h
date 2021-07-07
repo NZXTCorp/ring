@@ -19,7 +19,7 @@
 #ifndef OPENSSL_HEADER_EC_P256_SHARED_H
 #define OPENSSL_HEADER_EC_P256_SHARED_H
 
-#include "GFp/base.h"
+#include "ring-core/base.h"
 
 #include "../bn/internal.h"
 
@@ -50,7 +50,7 @@ typedef unsigned char P256_SCALAR_BYTES[33];
 
 static inline void p256_scalar_bytes_from_limbs(
     P256_SCALAR_BYTES bytes_out, const BN_ULONG limbs[P256_LIMBS]) {
-  GFp_memcpy(bytes_out, limbs, 32);
+  OPENSSL_memcpy(bytes_out, limbs, 32);
   bytes_out[32] = 0;
 }
 

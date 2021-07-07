@@ -168,6 +168,10 @@ ___
 print "#if defined(__arm__)\n" if ($flavour eq "linux32");
 print "#if defined(__aarch64__)\n" if ($flavour eq "linux64" || $flavour eq "win64");
 
+print <<___;
+#include "ring_core_generated/prefix_symbols_asm.h"
+___
+
 while(my $line=<>) {
 
     if ($line =~ m/^\s*(#|@|\/\/)/)	{ print $line; next; }

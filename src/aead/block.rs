@@ -12,7 +12,7 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use crate::{endian::*, polyfill};
+use crate::{endian::*, polyfill::array_map::Map};
 use core::ops::{BitXor, BitXorAssign};
 
 #[repr(transparent)]
@@ -37,7 +37,7 @@ impl Block {
     #[inline]
     pub fn zero_from(&mut self, index: usize) {
         let mut tmp: [u8; BLOCK_LEN] = *self.as_ref();
-        polyfill::slice::fill(&mut tmp[index..], 0);
+        tmp[index..].fill(0);
         *self = Self::from(&tmp)
     }
 }
@@ -49,10 +49,10 @@ impl From<[u64; 2]> for Block {
     }
 }
 
-impl Into<[u64; 2]> for Block {
+impl From<Block> for [u64; 2] {
     #[inline]
-    fn into(self) -> [u64; 2] {
-        [self.0[0].into(), self.0[1].into()]
+    fn from(Block(components): Block) -> Self {
+        components.array_map(Into::into)
     }
 }
 

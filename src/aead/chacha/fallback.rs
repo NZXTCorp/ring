@@ -19,7 +19,7 @@ use super::{Counter, Key, BLOCK_LEN};
 use crate::polyfill::ChunksFixedMut;
 use core::ops::RangeFrom;
 
-pub(super) fn chacha20_ctr32(
+pub(super) fn ChaCha20_ctr32(
     key: &Key,
     counter: Counter,
     in_out: &mut [u8],
@@ -50,9 +50,9 @@ pub(super) fn chacha20_ctr32(
         state[12] += 1;
 
         let todo = core::cmp::min(BLOCK_LEN, in_out_len);
-        for i in 0..todo {
+        for (i, &b) in buf[..todo].iter().enumerate() {
             let input = unsafe { *input.add(i) };
-            let b = input ^ buf[i];
+            let b = input ^ b;
             unsafe { *output.add(i) = b };
         }
 

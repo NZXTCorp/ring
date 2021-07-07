@@ -8,9 +8,7 @@
 
 #pragma GCC diagnostic ignored "-Wlanguage-extension-token"
 
-#if defined(BORINGSSL_PREFIX)
-#include <boringssl_prefix_symbols_asm.h>
-#endif
+#include "ring_core_generated/prefix_symbols_asm.h"
 
 # This implementation was taken from the public domain, neon2 version in
 # SUPERCOP by D. J. Bernstein and Peter Schwabe.
@@ -165,10 +163,10 @@
 
 # qhasm: qpushenter crypto_onetimeauth_poly1305_neon2_blocks
 .align 4
-.global GFp_poly1305_neon2_blocks
-.hidden GFp_poly1305_neon2_blocks
-.type GFp_poly1305_neon2_blocks STT_FUNC
-GFp_poly1305_neon2_blocks:
+.global openssl_poly1305_neon2_blocks
+.hidden openssl_poly1305_neon2_blocks
+.type openssl_poly1305_neon2_blocks STT_FUNC
+openssl_poly1305_neon2_blocks:
 vpush {q4,q5,q6,q7}
 mov r12,sp
 sub sp,sp,#192
@@ -1624,10 +1622,10 @@ bx lr
 
 # qhasm: enter crypto_onetimeauth_poly1305_neon2_addmulmod
 .align 2
-.global GFp_poly1305_neon2_addmulmod
-.hidden GFp_poly1305_neon2_addmulmod
-.type GFp_poly1305_neon2_addmulmod STT_FUNC
-GFp_poly1305_neon2_addmulmod:
+.global openssl_poly1305_neon2_addmulmod
+.hidden openssl_poly1305_neon2_addmulmod
+.type openssl_poly1305_neon2_addmulmod STT_FUNC
+openssl_poly1305_neon2_addmulmod:
 sub sp,sp,#0
 
 # qhasm: 				2x mask = 0xffffffff

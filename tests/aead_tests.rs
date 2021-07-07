@@ -15,7 +15,7 @@
 #![cfg(any(not(target_arch = "wasm32"), feature = "wasm32_c"))]
 
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen_test::{wasm_bindgen_test, wasm_bindgen_test_configure};
+use wasm_bindgen_test::{wasm_bindgen_test as test, wasm_bindgen_test_configure};
 
 #[cfg(target_arch = "wasm32")]
 wasm_bindgen_test_configure!(run_in_browser);
@@ -31,7 +31,6 @@ macro_rules! test_known_answer {
     ( $alg:ident, $test_file:expr, [ $( $test:ident ),+, ] ) => {
         $(
             #[test]
-            #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
             fn $test() {
                 test_aead(
                     &aead::$alg,
@@ -51,7 +50,11 @@ macro_rules! test_aead {
             $(
                 #[allow(non_snake_case)]
                 mod $alg { // Provide a separate namespace for each algorithm's test.
+                    #[cfg(not(target_arch = "wasm32"))]
                     use super::super::*;
+
+                    #[cfg(target_arch = "wasm32")]
+                    use super::super::{*, test};
 
                     test_known_answer!(
                         $alg,
@@ -68,7 +71,6 @@ macro_rules! test_aead {
                         ]);
 
                     #[test]
-                    #[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
                     fn key_sizes() {
                         super::super::key_sizes(&aead::$alg);
                     }
@@ -408,7 +410,6 @@ fn test_aead_nonce_sizes() {
 
 #[allow(clippy::range_plus_one)]
 #[test]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn aead_chacha20_poly1305_openssh() {
     // TODO: test_aead_key_sizes(...);
 
@@ -456,7 +457,6 @@ fn aead_chacha20_poly1305_openssh() {
 }
 
 #[test]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn aead_test_aad_traits() {
     test::compile_time_assert_copy::<aead::Aad<&'_ [u8]>>();
     test::compile_time_assert_eq::<aead::Aad<Vec<u8>>>(); // `!Copy`
@@ -470,14 +470,12 @@ fn aead_test_aad_traits() {
 }
 
 #[test]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn test_tag_traits() {
     test::compile_time_assert_send::<aead::Tag>();
     test::compile_time_assert_sync::<aead::Tag>();
 }
 
 #[test]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen_test)]
 fn test_aead_key_debug() {
     let key_bytes = [0; 32];
     let nonce = [0; aead::NONCE_LEN];
@@ -513,6 +511,52 @@ fn test_aead_key_debug() {
         "LessSafeKey { algorithm: AES_256_GCM }",
         format!("{:?}", key)
     );
+}
+
+fn test_aead_lesssafekey_clone_for_algorithm(algorithm: &'static aead::Algorithm) {
+    let test_bytes: Vec<u8> = (0..32).collect();
+    let key_bytes = &test_bytes[..algorithm.key_len()];
+    let nonce_bytes = &test_bytes[..algorithm.nonce_len()];
+
+    let key1: aead::LessSafeKey =
+        aead::LessSafeKey::new(aead::UnboundKey::new(algorithm, &key_bytes).unwrap());
+    let key2 = key1.clone();
+
+    // LessSafeKey doesn't support AsRef or PartialEq, so instead just check that both keys produce
+    // the same encrypted output.
+    let mut buf1: Vec<u8> = (0..100).collect();
+    let mut buf2 = buf1.clone();
+    let tag1 = key1
+        .seal_in_place_separate_tag(
+            aead::Nonce::try_assume_unique_for_key(&nonce_bytes).unwrap(),
+            aead::Aad::empty(),
+            &mut buf1,
+        )
+        .unwrap();
+    let tag2 = key2
+        .seal_in_place_separate_tag(
+            aead::Nonce::try_assume_unique_for_key(&nonce_bytes).unwrap(),
+            aead::Aad::empty(),
+            &mut buf2,
+        )
+        .unwrap();
+    assert_eq!(tag1.as_ref(), tag2.as_ref());
+    assert_eq!(buf1, buf2);
+}
+
+#[test]
+fn test_aead_lesssafekey_clone_aes_128_gcm() {
+    test_aead_lesssafekey_clone_for_algorithm(&aead::AES_128_GCM);
+}
+
+#[test]
+fn test_aead_lesssafekey_clone_aes_256_gcm() {
+    test_aead_lesssafekey_clone_for_algorithm(&aead::AES_256_GCM);
+}
+
+#[test]
+fn test_aead_lesssafekey_clone_chacha20_poly1305() {
+    test_aead_lesssafekey_clone_for_algorithm(&aead::CHACHA20_POLY1305);
 }
 
 fn make_key<K: aead::BoundKey<OneNonceSequence>>(
