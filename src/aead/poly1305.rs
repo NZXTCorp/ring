@@ -1,4 +1,5 @@
-// Copyright 2015-2025 Brian Smith.
+// Copyright (c) 2014, Google Inc.
+// Portions Copyright 2015-2025 Brian Smith.
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -12,6 +13,10 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+// This implementation of poly1305 is by Andrew Moon
+// (https://github.com/floodyberry/poly1305-donna) and released as public
+// domain.
+
 // TODO: enforce maximum input length.
 
 use super::{Tag, TAG_LEN};
@@ -19,12 +24,12 @@ use super::{Tag, TAG_LEN};
 use crate::cpu::GetFeature as _;
 use crate::{cpu, polyfill::slice::AsChunks};
 
+mod fallback;
 mod ffi_arm_neon;
-mod ffi_fallback;
 
 /// A Poly1305 key.
 pub(super) struct Key {
-    key_and_nonce: [u8; KEY_LEN],
+    key: [u8; KEY_LEN],
 }
 
 pub(super) const BLOCK_LEN: usize = 16;
@@ -32,15 +37,15 @@ pub(super) const KEY_LEN: usize = 2 * BLOCK_LEN;
 
 impl Key {
     #[inline]
-    pub(super) fn new(key_and_nonce: [u8; KEY_LEN]) -> Self {
-        Self { key_and_nonce }
+    pub(super) fn new(key: [u8; KEY_LEN]) -> Self {
+        Self { key }
     }
 }
 
 pub(super) enum Context {
     #[cfg(all(target_arch = "arm", target_endian = "little"))]
     ArmNeon(ffi_arm_neon::State),
-    Fallback(ffi_fallback::State),
+    Fallback(fallback::State),
 }
 
 impl Context {
@@ -51,7 +56,7 @@ impl Context {
             return ffi_arm_neon::State::new_context(key, cpu);
         }
         let _: cpu::Features = cpu;
-        ffi_fallback::State::new_context(key)
+        fallback::State::new_context(key)
     }
 
     pub fn update_block(&mut self, input: [u8; BLOCK_LEN]) {

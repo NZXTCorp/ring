@@ -1,4 +1,4 @@
-// Copyright 2015-2022 Brian Smith.
+// Copyright 2015-2025 Brian Smith.
 //
 // Permission to use, copy, modify, and/or distribute this software for any
 // purpose with or without fee is hereby granted, provided that the above
@@ -12,32 +12,16 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-use crate::limb::Limb;
+use crate::bb::BoolMask;
 
-#[derive(Clone, Copy)]
-#[repr(transparent)]
-pub struct N0([Limb; 2]);
-
-impl N0 {
-    #[cfg(feature = "alloc")]
-    pub(super) const LIMBS_USED: usize = 64 / crate::limb::LIMB_BITS;
+fn leak_in_test(a: BoolMask) -> bool {
+    a.leak()
 }
 
-match_target_word_bits! {
-    64 => {
-        impl N0 {
-            #[inline]
-            pub const fn precalculated(n0: u64) -> Self {
-                Self([n0, 0])
-            }
-        }
-    },
-    32 => {
-         impl N0 {
-            #[inline]
-            pub const fn precalculated(n0: u64) -> Self {
-                Self([n0 as Limb, (n0 >> crate::limb::LIMB_BITS) as Limb])
-            }
-         }
-    },
+#[test]
+fn test_bool_mask_bitwise_and_is_logical_and() {
+    assert!(leak_in_test(BoolMask::TRUE & BoolMask::TRUE));
+    assert!(!leak_in_test(BoolMask::TRUE & BoolMask::FALSE));
+    assert!(!leak_in_test(BoolMask::FALSE & BoolMask::TRUE));
+    assert!(!leak_in_test(BoolMask::FALSE & BoolMask::FALSE));
 }

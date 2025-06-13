@@ -23,6 +23,7 @@ use crate::{
     bb, c,
     error::{self, LenMismatchError},
     polyfill::{sliceutil, usize_from_u32, ArrayFlatMap},
+    window5::Window5,
 };
 use core::{iter, num::NonZeroUsize};
 
@@ -87,10 +88,7 @@ pub fn limbs_less_than_limbs_vartime(a: &[Limb], b: &[Limb]) -> Result<bool, Len
 
 #[inline]
 fn limb_is_zero(limb: Limb) -> LimbMask {
-    prefixed_extern! {
-        fn LIMB_is_zero(limb: Limb) -> LimbMask;
-    }
-    unsafe { LIMB_is_zero(limb) }
+    bb::WordOps::is_zero(limb)
 }
 
 #[inline]
@@ -239,12 +237,6 @@ pub fn unstripped_be_bytes(limbs: &[Limb]) -> impl ExactSizeIterator<Item = u8> 
     ArrayFlatMap::new(limbs.iter().rev().copied(), Limb::to_be_bytes).unwrap()
 }
 
-// Used in FFI
-pub type Window = bb::Word;
-
-// Used in FFI
-pub type LeakyWindow = bb::LeakyWord;
-
 /// Processes `limbs` as a sequence of 5-bit windows, folding the windows from
 /// most significant to least significant and returning the accumulated result.
 /// The first window will be mapped by `init` to produce the initial value for
@@ -258,7 +250,7 @@ pub type LeakyWindow = bb::LeakyWord;
 ///
 /// Panics if `limbs` is empty.
 #[cfg(feature = "alloc")]
-pub fn fold_5_bit_windows<R, I: FnOnce(Window) -> R, F: Fn(R, Window) -> R>(
+pub fn fold_5_bit_windows<R, I: FnOnce(Window5) -> R, F: Fn(R, Window5) -> R>(
     limbs: &[Limb],
     init: I,
     fold: F,
@@ -274,8 +266,8 @@ pub fn fold_5_bit_windows<R, I: FnOnce(Window) -> R, F: Fn(R, Window) -> R>(
             lower_limb: Limb,
             higher_limb: Limb,
             index_within_word: BitIndex,
-        ) -> Window;
-        fn LIMBS_window5_unsplit_window(limb: Limb, index_within_word: BitIndex) -> Window;
+        ) -> Window5;
+        fn LIMBS_window5_unsplit_window(limb: Limb, index_within_word: BitIndex) -> Window5;
     }
 
     let num_limbs = limbs.len();
@@ -295,7 +287,7 @@ pub fn fold_5_bit_windows<R, I: FnOnce(Window) -> R, F: Fn(R, Window) -> R>(
         init(leading_partial_window)
     };
 
-    let mut low_limb = Limb::from(0 as LeakyWindow);
+    let mut low_limb = 0;
     limbs.iter().fold(initial_value, |mut acc, current_limb| {
         let higher_limb = low_limb;
         low_limb = *current_limb;
@@ -384,7 +376,6 @@ prefixed_extern! {
 mod tests {
     use super::*;
     use alloc::vec::Vec;
-    use cfg_if::cfg_if;
 
     const MAX: LeakyLimb = LeakyLimb::MAX;
 
@@ -533,8 +524,8 @@ mod tests {
             assert_eq!(&[0xbeeff00d, 0, 0, 0], &result);
         }
 
-        cfg_if! {
-            if #[cfg(target_pointer_width = "64")] {
+        match_target_word_bits! {
+            64 => {
                 static TEST_CASES: &[(&[u8], &[Limb])] = &[
                     (&[1], &[1, 0]),
                     (&[1, 2], &[0x102, 0]),
@@ -554,7 +545,8 @@ mod tests {
                         .unwrap();
                     assert_eq!(limbs, &buf, "({be_bytes:x?}, {limbs:x?}");
                 }
-            } else if #[cfg(target_pointer_width = "32")] {
+            },
+            32 => {
                 static TEST_CASES: &[(&[u8], &[Limb])] = &[
                     (&[1], &[1, 0, 0]),
                     (&[1, 2], &[0x102, 0, 0]),
@@ -574,29 +566,35 @@ mod tests {
                         .unwrap();
                     assert_eq!(limbs, &buf, "({be_bytes:x?}, {limbs:x?}");
                 }
-            } else {
-                panic!("Unsupported target_pointer_width");
+            },
+            _ => {
+                const UNSUPPORTED_TARGET: () = panic!("Unsupported target due to word size.");
             }
-
-            // XXX: This is a weak set of tests. TODO: expand it.
         }
+        // XXX: This is a weak set of tests. TODO: expand it.
     }
 
     #[test]
     fn test_big_endian_from_limbs_same_length() {
-        #[cfg(target_pointer_width = "32")]
-        let limbs = [
-            0xbccddeef, 0x89900aab, 0x45566778, 0x01122334, 0xddeeff00, 0x99aabbcc, 0x55667788,
-            0x11223344,
-        ];
-
-        #[cfg(target_pointer_width = "64")]
-        let limbs = [
-            0x8990_0aab_bccd_deef,
-            0x0112_2334_4556_6778,
-            0x99aa_bbcc_ddee_ff00,
-            0x1122_3344_5566_7788,
-        ];
+        match_target_word_bits!(
+            64 => {
+                let limbs = [
+                    0x8990_0aab_bccd_deef,
+                    0x0112_2334_4556_6778,
+                    0x99aa_bbcc_ddee_ff00,
+                    0x1122_3344_5566_7788,
+                ];
+            },
+            32 => {
+                let limbs = [
+                    0xbccddeef, 0x89900aab, 0x45566778, 0x01122334,
+                    0xddeeff00, 0x99aabbcc, 0x55667788, 0x11223344,
+                ];
+            },
+            _ => {
+                const UNSUPPORTED_TARGET: () = panic!("Unsupported target due to word size.");
+            }
+        );
 
         let limbs = limbs.map(From::<LeakyLimb>::from);
 
@@ -614,19 +612,27 @@ mod tests {
     #[should_panic]
     #[test]
     fn test_big_endian_from_limbs_fewer_limbs() {
-        #[cfg(target_pointer_width = "32")]
-        // Two fewer limbs.
-        let limbs = [
-            0xbccddeef, 0x89900aab, 0x45566778, 0x01122334, 0xddeeff00, 0x99aabbcc,
-        ];
-
-        // One fewer limb.
-        #[cfg(target_pointer_width = "64")]
-        let limbs = [
-            0x8990_0aab_bccd_deef,
-            0x0112_2334_4556_6778,
-            0x99aa_bbcc_ddee_ff00,
-        ];
+        match_target_word_bits! {
+            64 => {
+                // One fewer limb.
+                let limbs = [
+                    0x8990_0aab_bccd_deef,
+                    0x0112_2334_4556_6778,
+                    0x99aa_bbcc_ddee_ff00,
+                ];
+            },
+            32 => {
+                // Two fewer limbs.
+                let limbs = [
+                    0xbccddeef, 0x89900aab,
+                    0x45566778, 0x01122334,
+                    0xddeeff00, 0x99aabbcc,
+                ];
+            },
+            _ => {
+                const UNSUPPORTED_TARGET: () = panic!("Unsupported target due to word size.");
+            }
+        }
 
         let limbs = limbs.map(From::<LeakyLimb>::from);
 

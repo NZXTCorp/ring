@@ -99,13 +99,11 @@ include = [
     "crypto/limbs/limbs.c",
     "crypto/limbs/limbs.h",
     "crypto/limbs/limbs.inl",
-    "crypto/mem.c",
     "crypto/perlasm/arm-xlate.pl",
     "crypto/perlasm/x86asm.pl",
     "crypto/perlasm/x86gas.pl",
     "crypto/perlasm/x86nasm.pl",
     "crypto/perlasm/x86_64-xlate.pl",
-    "crypto/poly1305/poly1305.c",
     "crypto/poly1305/poly1305_arm.c",
     "crypto/poly1305/poly1305_arm_asm.S",
     "crypto/cipher/asm/chacha20_poly1305_armv8.pl",
@@ -114,7 +112,6 @@ include = [
     "include/ring-core/asm_base.h",
     "include/ring-core/base.h",
     "include/ring-core/check.h",
-    "include/ring-core/mem.h",
     "include/ring-core/target.h",
     "include/ring-core/type_check.h",
     "src/**/*.rs",
@@ -167,7 +164,7 @@ libc = { version = "0.2.172", default-features = false }
 libc = { version = "0.2.172", default-features = false }
 
 [target.'cfg(all(all(target_arch = "aarch64", target_endian = "little"), target_os = "windows"))'.dependencies]
-windows-sys = { version = "0.52", features = ["Win32_Foundation", "Win32_System_Threading"] }
+windows-sys = { version = "0.60", features = ["Win32_Foundation", "Win32_System_Threading"] }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dev-dependencies]
 wasm-bindgen-test = { version = "0.3.37", default-features = false, features = ["std"] }

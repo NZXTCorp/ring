@@ -98,6 +98,9 @@ extern crate alloc;
 mod debug;
 
 #[macro_use]
+mod match_target_word_bits;
+
+#[macro_use]
 mod prefixed;
 
 #[doc(hidden)]
@@ -152,6 +155,8 @@ pub mod signature;
 
 #[cfg(test)]
 mod tests;
+
+mod window5;
 
 mod sealed {
     /// Traits that are designed to only be implemented internally in *ring*.

@@ -54,9 +54,11 @@ use crate::{
     error::{self, LenMismatchError},
     limb::{self, Limb, LIMB_BITS},
     polyfill::slice::{self, AsChunks},
+    window5::Window5,
 };
 use core::{
     marker::PhantomData,
+    mem::size_of,
     num::{NonZeroU64, NonZeroUsize},
 };
 
@@ -261,7 +263,7 @@ fn elem_squared<M, E>(
 where
     (E, E): ProductEncoding,
 {
-    limbs_square_mont(&mut a.limbs, m.limbs(), m.n0(), m.cpu_features())
+    limbs_square_mont(&mut a.limbs[..], m.limbs(), m.n0(), m.cpu_features())
         .unwrap_or_else(unwrap_impossible_limb_slice_error);
     Elem {
         limbs: a.limbs,
@@ -381,12 +383,10 @@ impl<M> One<M, RR> {
         //   = lg(2**b)
         //   = b
         // TODO(MSRV:1.67): const B: u32 = LIMB_BITS.ilog2();
-        const B: u32 = if cfg!(target_pointer_width = "64") {
-            6
-        } else if cfg!(target_pointer_width = "32") {
-            5
-        } else {
-            panic!("unsupported target_pointer_width")
+        const B: u32 = match size_of::<Limb>() {
+            8 => 6,
+            4 => 5,
+            _ => panic!("unsupported limb size"),
         };
         #[allow(clippy::assertions_on_constants)]
         const _LIMB_BITS_IS_2_POW_B: () = assert!(LIMB_BITS == 1 << B);
@@ -504,7 +504,7 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
     m: &Modulus<M>,
     other_prime_len_bits: BitLength,
 ) -> Result<Elem<M, Unencoded>, LimbSliceError> {
-    use crate::{bssl, limb::Window};
+    use crate::bssl;
 
     let base_rinverse: Elem<M, RInverse> = elem_reduced(out, base_mod_n, m, other_prime_len_bits);
 
@@ -531,13 +531,13 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
     // TODO: Rewrite the below in terms of `AsChunks`.
     let table = table.as_flattened_mut();
 
-    fn gather<M>(table: &[Limb], acc: &mut Elem<M, R>, i: Window) {
+    fn gather<M>(table: &[Limb], acc: &mut Elem<M, R>, i: Window5) {
         prefixed_extern! {
             fn LIMBS_select_512_32(
                 r: *mut Limb,
                 table: *const Limb,
                 num_limbs: c::size_t,
-                i: Window,
+                i: Window5,
             ) -> bssl::Result;
         }
         Result::from(unsafe {
@@ -550,7 +550,7 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
         table: &[Limb],
         mut acc: Elem<M, R>,
         m: &Modulus<M>,
-        i: Window,
+        i: Window5,
         mut tmp: Elem<M, R>,
     ) -> (Elem<M, R>, Elem<M, R>) {
         for _ in 0..WINDOW_BITS {
@@ -583,16 +583,20 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
         m.cpu_features(),
     )?;
     for i in 2..TABLE_ENTRIES {
-        let (src1, src2) = if i % 2 == 0 {
-            (i / 2, i / 2)
+        let (square, src1, src2) = if i % 2 == 0 {
+            (true, i / 2, i / 2)
         } else {
-            (i - 1, 1)
+            (false, i - 1, 1)
         };
         let (previous, rest) = table.split_at_mut(num_limbs * i);
-        let src1 = entry(previous, src1, num_limbs);
-        let src2 = entry(previous, src2, num_limbs);
         let dst = entry_mut(rest, 0, num_limbs);
-        limbs_mul_mont((dst, src1, src2), m.limbs(), m.n0(), m.cpu_features())?;
+        let src1 = entry(previous, src1, num_limbs);
+        if square {
+            limbs_square_mont((dst, src1), m.limbs(), m.n0(), m.cpu_features())?;
+        } else {
+            let src2 = entry(previous, src2, num_limbs);
+            limbs_mul_mont((dst, src1, src2), m.limbs(), m.n0(), m.cpu_features())?;
+        }
     }
 
     let mut acc = Elem {
@@ -633,8 +637,8 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
             intel::{Adx, Bmi2},
             GetFeature as _,
         },
-        limb::{LeakyWindow, Window},
         polyfill::slice::AsChunksMut,
+        window5::LeakyWindow5,
     };
 
     let n0 = m.n0();
@@ -730,16 +734,16 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
         mut acc: AsChunksMut<Limb, 8>,
         m_cached: AsChunks<Limb, 8>,
         n0: &N0,
-        mut i: LeakyWindow,
+        mut i: LeakyWindow5,
         cpu: Option<(Adx, Bmi2)>,
     ) -> Result<(), LimbSliceError> {
         loop {
             scatter5(acc.as_ref(), table.as_mut(), i)?;
-            i *= 2;
-            if i >= TABLE_ENTRIES as LeakyWindow {
-                break;
-            }
-            sqr_mont5(acc.as_mut(), m_cached, n0, cpu)?;
+            i = match i.checked_double() {
+                Some(i) => i,
+                None => break,
+            };
+            sqr_mont5(acc.as_flattened_mut(), m_cached, n0, cpu)?;
         }
         Ok(())
     }
@@ -748,30 +752,37 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
 
     // acc = table[0] = base**0 (i.e. 1).
     m.oneR(acc.as_flattened_mut());
-    scatter5(acc.as_ref(), table.as_mut(), 0)?;
+    scatter5(acc.as_ref(), table.as_mut(), LeakyWindow5::_0)?;
 
     // acc = base**1 (i.e. base).
     acc.as_flattened_mut()
         .copy_from_slice(base_cached.as_flattened());
 
     // Fill in entries 1, 2, 4, 8, 16.
-    scatter_powers_of_2(table.as_mut(), acc.as_mut(), m_cached, n0, 1, cpu2)?;
+    scatter_powers_of_2(
+        table.as_mut(),
+        acc.as_mut(),
+        m_cached,
+        n0,
+        LeakyWindow5::_1,
+        cpu2,
+    )?;
     // Fill in entries 3, 6, 12, 24; 5, 10, 20, 30; 7, 14, 28; 9, 18; 11, 22; 13, 26; 15, 30;
     // 17; 19; 21; 23; 25; 27; 29; 31.
-    for i in (3..(TABLE_ENTRIES as LeakyWindow)).step_by(2) {
-        let power = Window::from(i - 1);
-        assert!(power < 32); // Not secret,
-        unsafe {
-            mul_mont_gather5_amm(
-                acc.as_mut(),
-                base_cached,
-                table.as_ref(),
-                m_cached,
-                n0,
-                power,
-                cpu3,
-            )
-        }?;
+    for i in LeakyWindow5::range().skip(3).step_by(2) {
+        let power = Window5::from(i.checked_pred().unwrap_or_else(|| {
+            // Since i >= 3.
+            unreachable!()
+        }));
+        mul_mont_gather5_amm(
+            acc.as_mut(),
+            base_cached,
+            table.as_ref(),
+            m_cached,
+            n0,
+            power,
+            cpu3,
+        )?;
         scatter_powers_of_2(table.as_mut(), acc.as_mut(), m_cached, n0, i, cpu2)?;
     }
 
@@ -780,12 +791,12 @@ fn elem_exp_consttime_inner<N, M, const STORAGE_LIMBS: usize>(
     let acc = limb::fold_5_bit_windows(
         exponent.limbs(),
         |initial_window| {
-            unsafe { gather5(acc.as_mut(), table, initial_window) }
+            gather5(acc.as_mut(), table, initial_window)
                 .unwrap_or_else(unwrap_impossible_limb_slice_error);
             acc
         },
         |mut acc, window| {
-            unsafe { power5_amm(acc.as_mut(), table, m_cached, n0, window, cpu3) }
+            power5_amm(acc.as_mut(), table, m_cached, n0, window, cpu3)
                 .unwrap_or_else(unwrap_impossible_limb_slice_error);
             acc
         },
